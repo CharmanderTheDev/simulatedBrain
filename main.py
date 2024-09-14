@@ -12,12 +12,15 @@ class Synapse:
         self.output = output
         self.id = id
 
-        self.weight = 1
+        self.weight = 0
+        self.setWeight(1)
+
         self.transmitters = 0
     
     def tick(self):
         self.output.addPotential(self.transmitters)
         self.transmitters = 0
+        if(self.weight)<(1/(self.input.synapseAmount*100)):self.input.brain.removeSynapse(self.id)
     
     def setWeight(self, amount):
         self.input.weighttotal += (amount - self.weight)
@@ -38,13 +41,13 @@ class Neuron:
 
         self.heat = 0
         self.potential = 0
-        self.synapses = []
+        self.synapses = {}
         self.synapseAmount = 0
         self.weighttotal = 0
 
     def normalize(self):
-        for synapse in self.synapses:
-            synapse.weight/=self.weighttotal
+        for id in self.synapses:
+            self.synapses[id].weight/=self.weighttotal
         
         self.weighttotal = len(self.synapses)
 
@@ -53,14 +56,19 @@ class Neuron:
         
     def fire(self):
         self.normalize()
-        for synapse in self.synapses:
+        for id in self.synapses:
+            synapse = self.synapses[id]
             synapse.transmit(synapse.weight)
         
         if self.synapseAmount>=0:self.heat+=1
 
     def addSynapse(self, synapse):
         self.synapseAmount+=1
-        self.synapses.append(synapse)
+        self.synapses[synapse.id] = synapse
+
+    def removeSynapse(self, id):
+        self.synapseAmount-=1
+        self.synapses.pop(id, None)
 
     def tick(self):
         #firing if potential is sufficient
@@ -82,6 +90,7 @@ class Brain:
         self.neurons = list(Neuron(self, id) for id in range(neuronCount))
         self.neuronCount = neuronCount
         self.synapses = {}
+        self.deadSynapses = []
 
         self.inputs = inputs
         self.inputAmount = len(inputs)
@@ -130,16 +139,22 @@ class Brain:
         self.numSynapses+=1
 
     def removeSynapse(self, id):
-        synapse = self.synapses[id]
+        self.deadSynapses.append(id)
 
-        #removing from synapse table
-        del self.synapseTable[synapse.input][synapse.output]
+    def clearSynapses(self, ids):
+        for id in ids:
+            synapse = self.synapses[id]
 
-        #unhooking from parent neuron
-        synapse.input.remove
+            #removing from synapse table
+            del self.synapseTable[synapse.input.id][synapse.output.id]
 
-        #removing from synapse list
-        del self.synapses[id]
+            #unhooking from parent neuron
+            synapse.input.removeSynapse(id)
+
+            #removing from synapse list
+            del self.synapses[id]
+        
+        self.deadSynapses.clear()
         
 
     def next(self, inputs, dopamine=0, fullReturn=False):
@@ -153,16 +168,23 @@ class Brain:
 
         #iterating through synapses
         for neuron in self.neurons:
-            for synapse in neuron.synapses:
+            synapses = neuron.synapses
+
+            for id in synapses:
+                synapse = synapses[id]
 
                 #ticking synapses
                 synapse.tick()
 
                 #updating synapse weights
                 synapse.adjustWeight(dopamine, neuron.heat)
+            
+            self.clearSynapses(self.deadSynapses)
 
         #returning outputs
-        return(list(lambda output: self.neurons[output] for output in self.outputs))
+        outputvals = (list(self.neurons[output].potential for output in self.outputs))
+        for output in self.outputs:self.neurons[output].potential = 0
+        return(outputvals)
 
 brain = Brain(100, [0,1,2], [99])
 outputs = [0]
