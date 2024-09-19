@@ -63,7 +63,7 @@ impl Neuron {
         };
     }
 
-    fn normalize(self) {
+    fn normalize(&mut self) {
         for (id, synapse) in self.synapses {
             synapse.setWeight(synapse.getWeight/self.weight_total);
         }
@@ -71,24 +71,60 @@ impl Neuron {
         self.weight_total = self.synapse_amount;
     }
 
-    fn add_potential(self, amount:f32) {
+    fn add_potential(&mut self, amount:f32) {
         self.potential += amount;
     }
 
-    fn fire(self) {
+    fn fire(&mut self) {
         self.normalize();
-        for (id, synapse) in self.synapses {
+        for (_id, synapse) in self.synapses {
             synapse.transmit(synapse.get_weight());
         }
     }
 
-    fn addSynapse(self, synapse: Synapse) {
-        
+    fn add_synapse(&mut self, synapse: Synapse) {
+        self.synapse_amount += 1;
+        self.synapses[&synapse.id] = synapse;
+    }
+
+    fn remove_synapse(&mut self, id: usize) {
+        self.synapse_amount -= 1;
+        self.synapses.remove(&id);
+    }
+
+    fn tick(&mut self) {
+
+        if self.potential >= 1.0 {
+            self.fire();
+        }
+
+        if self.heat <= 0.25 {
+            self.brain.grow_synapse(self.id);
+        }
+
+        self.heat /= 2;
     }
 }
 
-struct Brain {}
-impl Brain {}
+struct Brain<'a> {
+    neurons: [Box<&'a mut Neuron>],
+    neuron_count: u32,
+    synapses: HashMap<usize, Synapse>,
+    dead_synapses: [usize],
+
+    inputs: [usize],
+    input_amount: usize,
+    outputs: [usize],
+
+    synapse_table: Hashmap<usize, HashMap<usize, Synapse>>,
+    num_synapses: u32,
+}
+impl Brain {
+    
+    fn grow_synapse(&mut self, input: [i32]) {
+        let output = 
+    }
+}
 
 fn main() {
     println!("Hello, world!");
