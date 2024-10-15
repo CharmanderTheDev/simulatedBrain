@@ -46,7 +46,11 @@ struct Neuron {
 }
 impl Neuron {
 
-    
+    fn normalize(self) {
+        for id in self.synapses {
+            
+        }
+    }
 }
 
 struct Brain {}
